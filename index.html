@@ -47,6 +47,10 @@ footer{text-align:center;color:#aaa597;font-size:10px;margin-top:35px;letter-spa
 .photo-pick input{display:none}.photo-pick img{display:none;max-width:100%;max-height:220px;object-fit:contain;border-radius:8px;margin:auto auto 10px}
 .form-actions{display:flex;gap:9px;margin-top:17px}.form-actions button{flex:1}
 .secondary{background:transparent;border:1px solid var(--line);border-radius:999px;padding:12px;color:var(--ink)}
+.cat-row{display:flex;align-items:center;gap:7px;padding:9px 10px;border:1px solid var(--line);border-radius:10px;background:#fffefa}
+.cat-name{flex:1;font-size:13px;min-width:0}.cat-count{font-size:10px;color:var(--muted);white-space:nowrap}
+.cat-action{border:1px solid var(--line);background:transparent;border-radius:7px;padding:6px 8px;font-size:11px;color:#625f55}
+.cat-action:disabled{opacity:.3;cursor:not-allowed}
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#292923;color:white;padding:10px 16px;border-radius:999px;font-size:12px;display:none;z-index:10}
 @media(max-width:760px){.app{padding:19px 14px 90px}.grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.hero{padding:19px;align-items:flex-start}.hero h2{font-size:18px}.header-note{display:none}.brand h1{font-size:27px}}
 @media(min-width:761px){.modal-backdrop{align-items:center}}
@@ -66,6 +70,7 @@ footer{text-align:center;color:#aaa597;font-size:10px;margin-top:35px;letter-spa
   <div class="search"><input id="search" placeholder="搜尋品牌、顏色或尺寸…" autocomplete="off"></div>
   <select id="categoryFilter"><option value="">所有類別</option><option>外套</option><option>褲子</option><option>上衣</option><option>襯衫</option><option>針織衫</option><option>洋裝</option><option>鞋子</option><option>配件</option><option>其他</option></select>
   <select id="sort"><option value="new">最近新增</option><option value="brand">品牌排序</option><option value="category">類別排序</option></select>
+  <button class="secondary" id="manageCatsBtn" style="border:1px solid var(--line);border-radius:999px;padding:10px 14px;background:var(--paper);font-size:12px">管理類別</button>
 </div>
 <div class="summary"><span id="count">目前 0 件衣物</span><span>MY WARDROBE</span></div>
 <section class="grid" id="grid"></section>
@@ -93,18 +98,50 @@ footer{text-align:center;color:#aaa597;font-size:10px;margin-top:35px;letter-spa
   </form>
 </div>
 </div>
+<div class="modal-backdrop" id="categoryBackdrop">
+<div class="modal">
+  <div class="modal-head"><h2>管理衣物類別</h2><button class="close" id="closeCats" aria-label="關閉">×</button></div>
+  <p style="font-size:12px;color:var(--muted);margin:-7px 0 16px">可新增、重新命名、刪除及調整類別順序。已有衣物使用的類別，刪除前需先選擇移轉類別。</p>
+  <div style="display:flex;gap:8px;margin-bottom:16px">
+    <input id="newCategory" placeholder="輸入新類別名稱" maxlength="20">
+    <button class="primary" id="addCategoryBtn" style="padding:10px 16px">新增</button>
+  </div>
+  <div id="categoryList" style="display:grid;gap:8px"></div>
+  <div class="form-actions"><button type="button" class="secondary" id="doneCats">完成</button></div>
+</div>
+</div>
 <div class="toast" id="toast"></div>
 <script>
-const DB_NAME='xuyi-closet-db', STORE='items';
-let db, items=[], editingId=null, photoData=null;
+const DB_NAME='xuyi-closet-db', STORE='items', CAT_STORE='categories';
+const DEFAULT_CATEGORIES=['外套','褲子','上衣','襯衫','針織衫','洋裝','鞋子','配件','其他'];
+let db, items=[], categories=[...DEFAULT_CATEGORIES], editingId=null, photoData=null;
 const $=id=>document.getElementById(id);
-function openDB(){return new Promise((resolve,reject)=>{const req=indexedDB.open(DB_NAME,1);req.onupgradeneeded=()=>req.result.createObjectStore(STORE,{keyPath:'id'});req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);});}
+function openDB(){return new Promise((resolve,reject)=>{const req=indexedDB.open(DB_NAME,2);req.onupgradeneeded=()=>{const d=req.result;if(!d.objectStoreNames.contains(STORE))d.createObjectStore(STORE,{keyPath:'id'});if(!d.objectStoreNames.contains(CAT_STORE))d.createObjectStore(CAT_STORE,{keyPath:'name'});};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);});}
+function allCategories(){return new Promise((resolve,reject)=>{const r=db.transaction(CAT_STORE).objectStore(CAT_STORE).getAll();r.onsuccess=()=>resolve(r.result.map(x=>x.name));r.onerror=()=>reject(r.error);});}
+function saveCategories(list){return new Promise((resolve,reject)=>{const tx=db.transaction(CAT_STORE,'readwrite'),s=tx.objectStore(CAT_STORE);s.clear();list.forEach(name=>s.put({name}));tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});}
 function allItems(){return new Promise((resolve,reject)=>{const r=db.transaction(STORE).objectStore(STORE).getAll();r.onsuccess=()=>resolve(r.result||[]);r.onerror=()=>reject(r.error);});}
 function saveItem(item){return new Promise((resolve,reject)=>{const r=db.transaction(STORE,'readwrite').objectStore(STORE).put(item);r.onsuccess=resolve;r.onerror=()=>reject(r.error);});}
 function removeItem(id){return new Promise((resolve,reject)=>{const r=db.transaction(STORE,'readwrite').objectStore(STORE).delete(id);r.onsuccess=resolve;r.onerror=()=>reject(r.error);});}
 function esc(s=''){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function toast(msg){$('toast').textContent=msg;$('toast').style.display='block';setTimeout(()=>$('toast').style.display='none',2200);}
-function render(){
+
+function refreshCategoryOptions(){
+ const filter=$('categoryFilter'), current=filter.value;
+ filter.innerHTML='<option value="">所有類別</option>'+categories.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
+ filter.value=categories.includes(current)?current:'';
+ const select=$('category'), selected=select.value;
+ select.innerHTML='<option value="">請選擇</option>'+categories.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
+ select.value=categories.includes(selected)?selected:'';
+}
+function renderCategoryManager(){
+ $('categoryList').innerHTML=categories.map((c,i)=>{
+ const used=items.filter(x=>x.category===c).length;
+ return `<div class="cat-row"><button class="cat-action" data-up="${i}" ${i===0?'disabled':''} title="上移">↑</button><button class="cat-action" data-down="${i}" ${i===categories.length-1?'disabled':''} title="下移">↓</button><span class="cat-name">${esc(c)}</span><span class="cat-count">${used} 件</span><button class="cat-action" data-rename="${i}">改名</button><button class="cat-action" data-remove="${i}">刪除</button></div>`;
+ }).join('');
+}
+async function openCategoryManager(){renderCategoryManager();$('categoryBackdrop').classList.add('show');}
+async function moveCategory(from,to){if(to<0||to>=categories.length)return;const v=categories.splice(from,1)[0];categories.splice(to,0,v);await saveCategories(categories);refreshCategoryOptions();renderCategoryManager();}
+\nfunction render(){
  const q=$('search').value.trim().toLowerCase(),cat=$('categoryFilter').value,sort=$('sort').value;
  let list=items.filter(x=>(!cat||x.category===cat)&&[x.brand,x.color,x.size,x.category].join(' ').toLowerCase().includes(q));
  list.sort((a,b)=>sort==='brand'?a.brand.localeCompare(b.brand,'zh-Hant'):sort==='category'?a.category.localeCompare(b.category,'zh-Hant'):b.created-a.created);
@@ -130,7 +167,19 @@ $('itemForm').onsubmit=async e=>{e.preventDefault();const category=$('category')
  await saveItem(item);items=await allItems();closeForm();render();toast(old?'衣物資料已更新':'已加入你的衣櫥');};
 $('grid').onclick=async e=>{const edit=e.target.dataset.edit,del=e.target.dataset.delete;if(edit){const x=items.find(i=>i.id===edit);if(x)openForm(x);}if(del){const x=items.find(i=>i.id===del);if(x&&confirm(`確定刪除「${x.brand||x.category}」嗎？`)){await removeItem(del);items=await allItems();render();toast('衣物已刪除');}}};
 $('search').oninput=render;$('categoryFilter').onchange=render;$('sort').onchange=render;
-(async()=>{try{db=await openDB();items=await allItems();render();}catch(e){console.error(e);toast('資料庫啟動失敗，請重新整理頁面');}})();
+$('manageCatsBtn').onclick=openCategoryManager;
+$('closeCats').onclick=()=> $('categoryBackdrop').classList.remove('show');
+$('doneCats').onclick=()=> $('categoryBackdrop').classList.remove('show');
+$('categoryBackdrop').onclick=e=>{if(e.target===$('categoryBackdrop'))$('categoryBackdrop').classList.remove('show');};
+$('addCategoryBtn').onclick=async()=>{const name=$('newCategory').value.trim();if(!name){toast('請輸入類別名稱');return;}if(categories.includes(name)){toast('這個類別已經存在');return;}categories.push(name);await saveCategories(categories);$('newCategory').value='';refreshCategoryOptions();renderCategoryManager();render();toast('已新增類別');};
+$('categoryList').onclick=async e=>{
+ const up=e.target.dataset.up,down=e.target.dataset.down,rename=e.target.dataset.rename,remove=e.target.dataset.remove;
+ if(up!==undefined){await moveCategory(Number(up),Number(up)-1);return;}
+ if(down!==undefined){await moveCategory(Number(down),Number(down)+1);return;}
+ if(rename!==undefined){const i=Number(rename),old=categories[i],next=prompt('請輸入新的類別名稱',old)?.trim();if(!next||next===old)return;if(categories.includes(next)){toast('這個類別名稱已存在');return;}categories[i]=next;items=items.map(x=>x.category===old?{...x,category:next}:x);await saveCategories(categories);for(const item of items)await saveItem(item);refreshCategoryOptions();renderCategoryManager();render();toast('類別及相關衣物已更新');return;}
+ if(remove!==undefined){const i=Number(remove),name=categories[i],used=items.filter(x=>x.category===name).length;if(categories.length<=1){toast('至少需要保留一個類別');return;}let target='';if(used){target=prompt(`「${name}」目前有 ${used} 件衣物。請輸入要移轉到的既有類別：\\n${categories.filter(c=>c!==name).join('、')}`,categories.find(c=>c!==name));if(!target)return;if(target===name||!categories.includes(target)){toast('請選擇有效的其他類別');return;}items=items.map(x=>x.category===name?{...x,category:target}:x);for(const item of items)await saveItem(item);}if(!confirm(`確定刪除「${name}」類別嗎？`))return;categories.splice(i,1);await saveCategories(categories);refreshCategoryOptions();renderCategoryManager();render();toast('類別已刪除');}
+};
+(async()=>{try{db=await openDB();items=await allItems();const stored=await allCategories();if(stored.length)categories=stored;else await saveCategories(categories);refreshCategoryOptions();render();}catch(e){console.error(e);toast('資料庫啟動失敗，請重新整理頁面');}})();
 if('serviceWorker'in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));}
 </script>
 </body>
