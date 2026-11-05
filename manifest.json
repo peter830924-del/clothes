@@ -1,0 +1,9 @@
+{
+  "name": "煦衣 Closet｜我的衣櫥",
+  "short_name": "煦衣 Closet",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f6f3ed",
+  "theme_color": "#f4f0e9",
+  "description": "個人數位衣櫥"
+}
