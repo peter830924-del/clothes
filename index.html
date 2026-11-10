@@ -20,7 +20,6 @@ header{display:flex;justify-content:space-between;align-items:center;margin-bott
 .hero h2{font-size:20px;font-weight:500;margin:0 0 7px}.hero p{font-size:13px;color:var(--muted);margin:0}
 .primary{background:var(--ink);color:white;border:0;border-radius:999px;padding:12px 19px;font-size:13px;white-space:nowrap}
 .toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:17px}
-.search{flex:1;min-width:190px}
 input,select,textarea{width:100%;background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:12px;color:var(--ink);outline:none}
 input:focus,select:focus,textarea:focus{border-color:#9a9d8e}
 .toolbar select{width:100%;min-width:0}.filter-field{width:150px;min-width:135px;display:flex;flex-direction:column;gap:5px}.filter-field label{font-size:11px;color:var(--muted);padding-left:3px}.filter-field select{width:100%}
@@ -52,7 +51,7 @@ footer{text-align:center;color:#aaa597;font-size:10px;margin-top:35px;letter-spa
 .cat-action{border:1px solid var(--line);background:transparent;border-radius:7px;padding:6px 8px;font-size:11px;color:#625f55}
 .cat-action:disabled{opacity:.3;cursor:not-allowed}
 .login-screen{position:fixed;inset:0;z-index:30;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:22px}.login-card{width:min(420px,100%);background:var(--paper);border:1px solid var(--line);border-radius:20px;padding:28px}.login-card h2{font-weight:500;margin:0 0 8px}.login-card p{font-size:13px;color:var(--muted);line-height:1.7}.login-card input{margin:12px 0}.login-error{color:var(--danger);font-size:12px;min-height:18px}.cloud-status{font-size:11px;color:var(--muted);margin-top:8px}.detail-backdrop{position:fixed;inset:0;background:#171713f5;z-index:20;display:none;align-items:center;justify-content:center;padding:18px}.detail-backdrop.show{display:flex}.detail-panel{width:min(900px,100%);max-height:96vh;overflow:auto;color:#fff;text-align:center}.detail-panel img{max-width:100%;max-height:76vh;object-fit:contain;border-radius:10px}.detail-close{position:fixed;right:18px;top:18px;border:0;border-radius:50%;width:42px;height:42px;font-size:25px;background:#ffffffdd;color:#222}.detail-meta{font-size:13px;line-height:1.8;margin-top:12px}.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#292923;color:white;padding:10px 16px;border-radius:999px;font-size:12px;display:none;z-index:10}
-@media(max-width:760px){.app{padding:19px 14px 90px}.grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.hero{padding:19px;align-items:flex-start}.hero h2{font-size:18px}.header-note{display:none}.brand h1{font-size:27px}.toolbar{display:grid;grid-template-columns:1fr 1fr;gap:9px}.toolbar .search{grid-column:1/-1;min-width:0}.filter-field{width:100%;min-width:0}.toolbar #sort{width:100%;min-width:0}.toolbar #manageCatsBtn{width:100%}}
+@media(max-width:760px){.app{padding:19px 14px 90px}.grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.hero{padding:19px;align-items:flex-start}.hero h2{font-size:18px}.header-note{display:none}.brand h1{font-size:27px}.toolbar{display:grid;grid-template-columns:1fr 1fr;gap:9px}.toolbar .filter-field{min-width:0}.filter-field{width:100%;min-width:0}.toolbar #sort{width:100%;min-width:0}.toolbar #manageCatsBtn{width:100%}}
 @media(min-width:761px){.modal-backdrop{align-items:center}}
 </style>
 </head>
@@ -68,10 +67,9 @@ footer{text-align:center;color:#aaa597;font-size:10px;margin-top:35px;letter-spa
   <button class="primary" id="addBtn">＋ 新增衣物</button>
 </section>
 <div class="toolbar">
-  <div class="search"><input id="search" placeholder="搜尋品牌、顏色或尺寸…" autocomplete="off"></div>
   <div class="filter-field"><label for="categoryFilter">主分類篩選</label><select id="categoryFilter" aria-label="依主分類篩選"><option value="">所有主分類</option></select></div>
   <div class="filter-field"><label for="subcategoryFilter">子分類篩選</label><select id="subcategoryFilter" aria-label="依子分類篩選"><option value="">所有子分類</option></select></div>
-  <select id="sort"><option value="new">最近新增</option><option value="brand">品牌排序</option><option value="category">類別排序</option></select>
+  <select id="sort" aria-label="排序方式"><option value="category">類別排序</option><option value="brand">品牌排序</option></select>
   <button class="secondary" id="manageCatsBtn" style="border:1px solid var(--line);border-radius:999px;padding:10px 14px;background:var(--paper);font-size:12px">管理類別</button>
 </div>
 <div class="summary"><span id="count">目前 0 件衣物</span><span>MY WARDROBE</span></div>
@@ -95,6 +93,7 @@ footer{text-align:center;color:#aaa597;font-size:10px;margin-top:35px;letter-spa
       <div class="field"><label for="brand">品牌</label><input id="brand" placeholder="例如：Loro Piana"></div>
       <div class="field"><label for="color">顏色</label><input id="color" placeholder="例如：深藍色"></div>
       <div class="field"><label for="size">尺寸</label><input id="size" placeholder="例如：48 / M / 32"></div>
+      <div class="field"><label for="itemDateTime">日期時間</label><input id="itemDateTime" type="datetime-local" required></div>
     </div>
     <div class="form-actions"><button type="button" class="secondary" id="cancelBtn">取消</button><button type="submit" class="primary">儲存衣物</button></div>
   </form>
@@ -206,19 +205,26 @@ async function openCategoryManager(){renderCategoryManager();$('categoryBackdrop
 async function moveCategory(from,to){if(to<0||to>=categories.length)return;const v=categories.splice(from,1)[0];categories.splice(to,0,v);await saveCategories(categories);refreshCategoryOptions();renderCategoryManager();}
 
 function render(){
- const q=$('search').value.trim().toLowerCase(),cat=$('categoryFilter').value,sub=$('subcategoryFilter').value,sort=$('sort').value;
- let list=items.filter(x=>(!cat||x.category===cat)&&(!sub||x.subcategory===sub)&&[x.brand,x.color,x.size,x.category,x.subcategory||''].join(' ').toLowerCase().includes(q));
- list.sort((a,b)=>sort==='brand'?a.brand.localeCompare(b.brand,'zh-Hant'):sort==='category'?a.category.localeCompare(b.category,'zh-Hant'):b.created-a.created);
+ const cat=$('categoryFilter').value,sub=$('subcategoryFilter').value,sort=$('sort').value;
+ let list=items.filter(x=>(!cat||x.category===cat)&&(!sub||x.subcategory===sub));
+ list.sort((a,b)=>sort==='brand'?String(a.brand||'').localeCompare(String(b.brand||''),'zh-Hant'):a.category.localeCompare(b.category,'zh-Hant')||String(a.brand||'').localeCompare(String(b.brand||''),'zh-Hant'));
  $('count').textContent=`目前 ${items.length} 件衣物 · 顯示 ${list.length} 件`;
  $('grid').innerHTML=list.length?list.map(x=>`<article class="card">
  ${x.photo?`<img class="photo" src="${x.photo}" alt="${esc(x.brand||x.category)}">`:`<div class="no-photo">尚無照片</div>`}
  <div class="info"><div class="category">${esc(x.category)}${x.subcategory?` · ${esc(x.subcategory)}`:''}</div><div class="name">${esc(x.brand||'未填寫品牌')}</div><div class="meta">${x.color?`<span>${esc(x.color)}</span>`:''}${x.size?`<span>尺寸 ${esc(x.size)}</span>`:''}</div>
- <div class="card-actions"><button class="small-btn" data-edit="${x.id}">編輯</button><button class="small-btn" data-delete="${x.id}">刪除</button></div></div></article>`).join(''):`<div class="empty"><div class="symbol">＋</div><h3>${q||cat||sub?'找不到符合的衣物':'你的衣櫥還是空的'}</h3><p>${q||cat||sub?'試試其他搜尋條件。':'從拍攝第一件衣服開始，建立自己的數位衣櫥。'}</p>${q||cat||sub?'':'<button class="primary" onclick="openForm()">新增第一件衣物</button>'}</div>`;
+ <div class="card-actions"><button class="small-btn" data-edit="${x.id}">編輯</button><button class="small-btn" data-delete="${x.id}">刪除</button></div></div></article>`).join(''):`<div class="empty"><div class="symbol">＋</div><h3>${cat||sub?'找不到符合的衣物':'你的衣櫥還是空的'}</h3><p>${cat||sub?'請調整主分類或子分類條件。':'從拍攝第一件衣服開始，建立自己的數位衣櫥。'}</p>${cat||sub?'':'<button class="primary" onclick="openForm()">新增第一件衣物</button>'}</div>`;
+}
+function toLocalDateTimeValue(value){
+ const d=value instanceof Date?value:new Date(value);
+ if(Number.isNaN(d.getTime()))return toLocalDateTimeValue(new Date());
+ const pad=n=>String(n).padStart(2,'0');
+ return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 function openForm(item=null){
  editingId=item?.id||null;photoData=item?.photo||null;
  $('modalTitle').textContent=item?'編輯衣物':'新增衣物';
  $('category').value=item?.category||'';refreshSubcategoryOptions(item?.subcategory||'');$('brand').value=item?.brand||'';$('color').value=item?.color||'';$('size').value=item?.size||'';
+ $('itemDateTime').value=item?.itemDateTime||toLocalDateTimeValue(item?.created||new Date());
  $('photoInput').value='';showPreview(photoData);$('modalBackdrop').classList.add('show');
 }
 function showPreview(src){$('preview').src=src||'';$('preview').style.display=src?'block':'none';$('photoPrompt').style.display=src?'none':'block';}
@@ -227,13 +233,13 @@ $('addBtn').onclick=()=>openForm();$('category').onchange=()=>refreshSubcategory
 $('modalBackdrop').onclick=e=>{if(e.target===$('modalBackdrop'))closeForm();};
 $('photoInput').onchange=async e=>{const f=e.target.files[0];if(!f)return;if(!f.type.startsWith('image/')){toast('請選擇圖片檔案');return;}try{photoData=await compressImage(f);showPreview(photoData);toast('照片已自動壓縮');}catch(err){console.error(err);toast('照片處理失敗，請重新選擇');}};
 $('itemForm').onsubmit=async e=>{e.preventDefault();const category=$('category').value;if(!category)return;
- const old=items.find(x=>x.id===editingId);const item={id:editingId||crypto.randomUUID(),category,subcategory:$('subcategory').value||'',brand:$('brand').value.trim(),color:$('color').value.trim(),size:$('size').value.trim(),photo:photoData,photo_path:old?.photo_path||null,created:old?.created||Date.now(),updated:Date.now()};
+ const old=items.find(x=>x.id===editingId);const item={id:editingId||crypto.randomUUID(),category,subcategory:$('subcategory').value||'',brand:$('brand').value.trim(),color:$('color').value.trim(),size:$('size').value.trim(),itemDateTime:$('itemDateTime').value||toLocalDateTimeValue(new Date()),photo:photoData,photo_path:old?.photo_path||null,created:old?.created||Date.now(),updated:Date.now()};
  await saveItem(item);items=await allItems();closeForm();render();toast(old?'衣物資料已更新':'已加入你的衣櫥');};
 $('grid').onclick=async e=>{const edit=e.target.dataset.edit,del=e.target.dataset.delete;const photo=e.target.closest('article')?.querySelector('.photo');if(e.target.classList.contains('photo')&&photo){const card=e.target.closest('.card'),id=card?.querySelector('[data-edit]')?.dataset.edit,item=items.find(x=>x.id===id);if(item?.photo){$('detailPhoto').src=item.photo;$('detailMeta').textContent=[item.category,item.subcategory,item.brand,item.color,item.size?'尺寸 '+item.size:''].filter(Boolean).join(' · ');$('detailBackdrop').classList.add('show');}return;}if(edit){const x=items.find(i=>i.id===edit);if(x)openForm(x);}if(del){const x=items.find(i=>i.id===del);if(x&&confirm(`確定刪除「${x.brand||x.category}」嗎？`)){await removeItem(del);items=await allItems();render();toast('衣物已刪除');}}};
 $('detailClose').onclick=()=>$('detailBackdrop').classList.remove('show');$('detailBackdrop').onclick=e=>{if(e.target===$('detailBackdrop'))$('detailBackdrop').classList.remove('show');};
 $('loginForm').onsubmit=async e=>{e.preventDefault();const btn=$('loginButton'),err=$('loginError');btn.disabled=true;btn.textContent='登入中…';err.textContent='';try{await signIn($('loginPassword').value);}catch(ex){console.error(ex);err.textContent='登入失敗，請確認簡記目前使用的密碼及 Supabase 帳號狀態。';}finally{btn.disabled=false;btn.textContent='登入煦衣';}};
 $('logoutBtn').onclick=async()=>{if(!confirm('確定登出煦衣？'))return;await supabaseClient.auth.signOut();currentUser=null;cloudReady=false;$('appShell').style.display='none';$('loginScreen').style.display='flex';};
-$('search').oninput=render;$('categoryFilter').onchange=()=>{refreshSubcategoryFilterOptions('');render();};$('subcategoryFilter').onchange=render;$('sort').onchange=render;
+$('categoryFilter').onchange=()=>{refreshSubcategoryFilterOptions('');render();};$('subcategoryFilter').onchange=render;$('sort').onchange=render;
 $('manageCatsBtn').onclick=openCategoryManager;
 $('closeCats').onclick=()=> $('categoryBackdrop').classList.remove('show');
 $('doneCats').onclick=()=> $('categoryBackdrop').classList.remove('show');
