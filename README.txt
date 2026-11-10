@@ -1,30 +1,15 @@
-煦衣 Closet v2.1｜Supabase 雲端同步＋主／子分類搜尋
+煦衣 Closet v2.2｜雲端同步＋主／子分類篩選
 
-本版功能：
-- 沿用簡記既有 Supabase 專案及同一個登入帳號（與簡記相同的密碼）。
-- 登入方式沿用簡記：畫面輸入密碼，程式使用簡記既有固定登入 Email 完成 Supabase Auth。
-- 衣物資料同步至 public.closet_items。
-- 主分類及子分類同步至 public.closet_categories。
-- 主畫面新增「主分類」及「子分類」兩個獨立篩選器，可單獨或交叉篩選；選擇主分類後，子分類選單只顯示該主分類底下的子分類；未選主分類時可搜尋所有子分類。
-- 衣物照片上傳至私有 Storage bucket closet-photos。
-- 手機與電腦登入同一帳號後使用同一份雲端衣櫥。
-- 拍照或選圖時自動縮圖及 JPEG 壓縮（最長邊 1600px，目標約 550KB 以下）。
-- 點選衣物照片可全螢幕檢視。
-- 保留 IndexedDB 作為本機快取；首次登入若雲端衣櫥為空，會將該裝置原有衣物及分類匯入雲端。雲端已有資料時，雲端資料為主並更新本機快取。
+本版修正：
+1. 主畫面明確顯示「主分類篩選」及「子分類篩選」兩個下拉選單。
+2. 手機版改為兩欄排列，兩個篩選選單不會被擠出畫面。
+3. Service Worker 快取版本更新為 xuyi-closet-v5，啟用時清除舊版快取。
+4. 保留既有 Supabase 雲端同步及原有衣物資料處理方式。
 
-Supabase 設定：
-Project URL: https://emwzognoixuvtzafxqlv.supabase.co
-Publishable Key: 已寫入前端設定（此為可公開使用的 publishable key；不可將 service_role / Secret key 放入前端）。
-登入 Email: peter830924@gmail.com（與簡記 v3.6 相同）
-照片 bucket: closet-photos（private）
-資料表: closet_items、closet_categories
+更新方式：
+1. 解壓縮本 ZIP。
+2. 將 index.html、manifest.json、sw.js、README.txt 覆蓋 GitHub Repository 根目錄同名檔案。
+3. Commit changes，等待 GitHub Pages 部署完成。
+4. 關閉煦衣頁面後重新開啟。若仍顯示舊畫面，請完全關閉瀏覽器分頁再開啟原網址。
 
-重要注意：
-1. 請使用原本簡記的密碼登入，不要建立新帳號。
-2. 每一台裝置第一次登入時，如果雲端尚無衣櫥資料，會匯入該裝置 IndexedDB 的資料；請先在原本有完整衣物資料的裝置登入並完成匯入，再於其他裝置登入。
-3. 若雲端已有資料，其他裝置會以雲端資料更新本機資料，不會把另一台裝置的本機未同步資料自動合併。請勿在不同裝置各自建立大量離線資料後才登入同步。
-4. 請勿清除瀏覽器網站資料；更新 GitHub Pages 時保留相同網址及網域。
-5. 本版使用 Supabase Storage 私有照片及短效簽名網址。資料表 RLS 必須已依照先前 SQL 設定完成。
-6. 若首次登入後看到雲端連線或權限錯誤，請先截圖錯誤訊息，不要重複執行 SQL 或刪除資料。
-
-部署：將 ZIP 解壓縮後，覆蓋 GitHub Repository 根目錄中的 index.html、manifest.json、sw.js、README.txt，再 Commit。等待 Pages 更新後，手機及電腦都使用同一個 Pages 網址。
+注意：不要清除網站資料或 IndexedDB，以免刪除尚未同步的本機衣物資料。

@@ -23,7 +23,7 @@ header{display:flex;justify-content:space-between;align-items:center;margin-bott
 .search{flex:1;min-width:190px}
 input,select,textarea{width:100%;background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:12px;color:var(--ink);outline:none}
 input:focus,select:focus,textarea:focus{border-color:#9a9d8e}
-.toolbar select{width:auto;min-width:125px}.toolbar #subcategoryFilter{min-width:135px}
+.toolbar select{width:100%;min-width:0}.filter-field{width:150px;min-width:135px;display:flex;flex-direction:column;gap:5px}.filter-field label{font-size:11px;color:var(--muted);padding-left:3px}.filter-field select{width:100%}
 .summary{display:flex;justify-content:space-between;align-items:center;margin:16px 2px;color:var(--muted);font-size:12px}
 .grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
 .card{background:var(--paper);border:1px solid var(--line);border-radius:14px;overflow:hidden;min-width:0}
@@ -52,7 +52,7 @@ footer{text-align:center;color:#aaa597;font-size:10px;margin-top:35px;letter-spa
 .cat-action{border:1px solid var(--line);background:transparent;border-radius:7px;padding:6px 8px;font-size:11px;color:#625f55}
 .cat-action:disabled{opacity:.3;cursor:not-allowed}
 .login-screen{position:fixed;inset:0;z-index:30;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:22px}.login-card{width:min(420px,100%);background:var(--paper);border:1px solid var(--line);border-radius:20px;padding:28px}.login-card h2{font-weight:500;margin:0 0 8px}.login-card p{font-size:13px;color:var(--muted);line-height:1.7}.login-card input{margin:12px 0}.login-error{color:var(--danger);font-size:12px;min-height:18px}.cloud-status{font-size:11px;color:var(--muted);margin-top:8px}.detail-backdrop{position:fixed;inset:0;background:#171713f5;z-index:20;display:none;align-items:center;justify-content:center;padding:18px}.detail-backdrop.show{display:flex}.detail-panel{width:min(900px,100%);max-height:96vh;overflow:auto;color:#fff;text-align:center}.detail-panel img{max-width:100%;max-height:76vh;object-fit:contain;border-radius:10px}.detail-close{position:fixed;right:18px;top:18px;border:0;border-radius:50%;width:42px;height:42px;font-size:25px;background:#ffffffdd;color:#222}.detail-meta{font-size:13px;line-height:1.8;margin-top:12px}.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#292923;color:white;padding:10px 16px;border-radius:999px;font-size:12px;display:none;z-index:10}
-@media(max-width:760px){.app{padding:19px 14px 90px}.grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.hero{padding:19px;align-items:flex-start}.hero h2{font-size:18px}.header-note{display:none}.brand h1{font-size:27px}}
+@media(max-width:760px){.app{padding:19px 14px 90px}.grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.hero{padding:19px;align-items:flex-start}.hero h2{font-size:18px}.header-note{display:none}.brand h1{font-size:27px}.toolbar{display:grid;grid-template-columns:1fr 1fr;gap:9px}.toolbar .search{grid-column:1/-1;min-width:0}.filter-field{width:100%;min-width:0}.toolbar #sort{width:100%;min-width:0}.toolbar #manageCatsBtn{width:100%}}
 @media(min-width:761px){.modal-backdrop{align-items:center}}
 </style>
 </head>
@@ -69,8 +69,8 @@ footer{text-align:center;color:#aaa597;font-size:10px;margin-top:35px;letter-spa
 </section>
 <div class="toolbar">
   <div class="search"><input id="search" placeholder="搜尋品牌、顏色或尺寸…" autocomplete="off"></div>
-  <select id="categoryFilter" aria-label="依主分類篩選"><option value="">所有主分類</option></select>
-  <select id="subcategoryFilter" aria-label="依子分類篩選"><option value="">所有子分類</option></select>
+  <div class="filter-field"><label for="categoryFilter">主分類篩選</label><select id="categoryFilter" aria-label="依主分類篩選"><option value="">所有主分類</option></select></div>
+  <div class="filter-field"><label for="subcategoryFilter">子分類篩選</label><select id="subcategoryFilter" aria-label="依子分類篩選"><option value="">所有子分類</option></select></div>
   <select id="sort"><option value="new">最近新增</option><option value="brand">品牌排序</option><option value="category">類別排序</option></select>
   <button class="secondary" id="manageCatsBtn" style="border:1px solid var(--line);border-radius:999px;padding:10px 14px;background:var(--paper);font-size:12px">管理類別</button>
 </div>
