@@ -270,7 +270,32 @@ $('categoryList').onclick=async e=>{
 };
 $('categoryList').onkeydown=e=>{if(e.key==='Enter'&&e.target.matches('input[data-subinput]')){e.preventDefault();const i=e.target.dataset.subinput;$('categoryList').querySelector(`button[data-subadd="${i}"]`)?.click();}};
 (async()=>{try{await bootCloud();}catch(e){console.error(e);$('loginScreen').style.display='flex';$('loginError').textContent='雲端連線失敗，請重新整理或稍後再試。';}})();
-if('serviceWorker'in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));}
+// PWA 自動更新：每次開啟時主動檢查 GitHub Pages 上的新版；更新完成後只重新載入一次。
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  const hadController = !!navigator.serviceWorker.controller;
+  let reloadingForUpdate = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (hadController && !reloadingForUpdate) {
+      reloadingForUpdate = true;
+      window.location.reload();
+    }
+  });
+  window.addEventListener('load', async () => {
+    try {
+      const registration = await navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' });
+      await registration.update();
+      if (registration.waiting) registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+      registration.addEventListener('updatefound', () => {
+        const worker = registration.installing;
+        if (worker) worker.addEventListener('statechange', () => {
+          if (worker.state === 'installed' && navigator.serviceWorker.controller) {
+            worker.postMessage({ type: 'SKIP_WAITING' });
+          }
+        });
+      });
+    } catch (error) { console.warn('煦衣自動更新檢查失敗，將於下次開啟時重試。', error); }
+  });
+}
 </script>
 </body>
 </html>
