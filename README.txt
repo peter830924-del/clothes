@@ -1,39 +1,29 @@
-煦衣 Closet v1.4
+煦衣 Closet v2.0｜Supabase 雲端同步版
 
-檔案內容：
-- index.html：衣櫥 App 主程式
-- manifest.json：PWA 設定
-- sw.js：離線快取
+本版功能：
+- 沿用簡記既有 Supabase 專案及同一個登入帳號（與簡記相同的密碼）。
+- 登入方式沿用簡記：畫面輸入密碼，程式使用簡記既有固定登入 Email 完成 Supabase Auth。
+- 衣物資料同步至 public.closet_items。
+- 主分類及子分類同步至 public.closet_categories。
+- 衣物照片上傳至私有 Storage bucket closet-photos。
+- 手機與電腦登入同一帳號後使用同一份雲端衣櫥。
+- 拍照或選圖時自動縮圖及 JPEG 壓縮（最長邊 1600px，目標約 550KB 以下）。
+- 點選衣物照片可全螢幕檢視。
+- 保留 IndexedDB 作為本機快取；首次登入若雲端衣櫥為空，會將該裝置原有衣物及分類匯入雲端。雲端已有資料時，雲端資料為主並更新本機快取。
 
-本版修正及功能：
-- 修正手機及桌面版新增子分類的事件判斷問題
-- 同一主類別可連續新增多個子分類，並可按 Enter 快速新增
-- 新增子分類後立即儲存至瀏覽器資料庫
-- 更新離線快取版本，避免舊版程式持續被快取
+Supabase 設定：
+Project URL: https://emwzognoixuvtzafxqlv.supabase.co
+Publishable Key: 已寫入前端設定（此為可公開使用的 publishable key；不可將 service_role / Secret key 放入前端）。
+登入 Email: peter830924@gmail.com（與簡記 v3.6 相同）
+照片 bucket: closet-photos（private）
+資料表: closet_items、closet_categories
 
-原有功能：
-- 類別管理：新增、改名、刪除類別
-- 上下移動調整類別順序
-- 刪除已有衣物的類別時，可先將衣物移轉至其他類別
-- 類別資料會保存在瀏覽器資料庫中
+重要注意：
+1. 請使用原本簡記的密碼登入，不要建立新帳號。
+2. 每一台裝置第一次登入時，如果雲端尚無衣櫥資料，會匯入該裝置 IndexedDB 的資料；請先在原本有完整衣物資料的裝置登入並完成匯入，再於其他裝置登入。
+3. 若雲端已有資料，其他裝置會以雲端資料更新本機資料，不會把另一台裝置的本機未同步資料自動合併。請勿在不同裝置各自建立大量離線資料後才登入同步。
+4. 請勿清除瀏覽器網站資料；更新 GitHub Pages 時保留相同網址及網域。
+5. 本版使用 Supabase Storage 私有照片及短效簽名網址。資料表 RLS 必須已依照先前 SQL 設定完成。
+6. 若首次登入後看到雲端連線或權限錯誤，請先截圖錯誤訊息，不要重複執行 SQL 或刪除資料。
 
-部署：
-1. 在 GitHub 建立新的 Public Repository，例如 xuyi-closet。
-2. 將 ZIP 解壓縮，將裡面的檔案直接上傳到 Repository 根目錄。
-3. 到 Settings > Pages。
-4. Source 選 Deploy from a branch；Branch 選 main，資料夾選 /(root)，按 Save。
-5. 等待 GitHub Pages 部署完成，網址通常為 https://你的帳號.github.io/xuyi-closet/
-
-資料儲存提醒：
-本版本使用瀏覽器 IndexedDB 儲存衣物資料、照片及類別，資料留在目前這台裝置／瀏覽器，不會自動跨裝置同步。請勿清除網站資料；跨裝置同步可於後續版本加入 Supabase。
-若你已使用 v1.0，請用本版檔案覆蓋原 Repository 的 index.html、manifest.json、sw.js；瀏覽器資料庫會升級，原有衣物資料會保留。
-
-
-v1.3 修正與新增：
-- 修正主程式中的語法錯誤，恢復新增／編輯衣物及類別管理功能。
-- 類別支援自訂子分類，可新增、改名及刪除。
-- 新增衣物時可選擇主分類與子分類；既有資料會保留。
-- 更新離線快取版本，避免舊程式持續被快取。
-
-
-v1.3 修正：修復新增子分類時的輸入欄位定位錯誤；新增後可連續建立多個子分類；衣物表單的主類別選單會同步顯示自訂類別。
+部署：將 ZIP 解壓縮後，覆蓋 GitHub Repository 根目錄中的 index.html、manifest.json、sw.js、README.txt，再 Commit。等待 Pages 更新後，手機及電腦都使用同一個 Pages 網址。

@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#f4f0e9">
 <meta name="description" content="個人數位衣櫥，輕鬆管理外套、褲子與日常衣物。">
 <link rel="manifest" href="manifest.json">
-<title>煦衣 Closet｜我的衣櫥</title>
+<title>煦衣 Closet｜雲端衣櫥</title>
 <style>
 :root{--bg:#f6f3ed;--paper:#fffefa;--ink:#292923;--muted:#858276;--line:#e7e2d8;--accent:#6f7665;--soft:#eeece4;--danger:#a34e43}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC","Segoe UI",sans-serif}
@@ -51,16 +51,17 @@ footer{text-align:center;color:#aaa597;font-size:10px;margin-top:35px;letter-spa
 .cat-name{flex:1;font-size:13px;min-width:0}.cat-count{font-size:10px;color:var(--muted);white-space:nowrap}
 .cat-action{border:1px solid var(--line);background:transparent;border-radius:7px;padding:6px 8px;font-size:11px;color:#625f55}
 .cat-action:disabled{opacity:.3;cursor:not-allowed}
-.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#292923;color:white;padding:10px 16px;border-radius:999px;font-size:12px;display:none;z-index:10}
+.login-screen{position:fixed;inset:0;z-index:30;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:22px}.login-card{width:min(420px,100%);background:var(--paper);border:1px solid var(--line);border-radius:20px;padding:28px}.login-card h2{font-weight:500;margin:0 0 8px}.login-card p{font-size:13px;color:var(--muted);line-height:1.7}.login-card input{margin:12px 0}.login-error{color:var(--danger);font-size:12px;min-height:18px}.cloud-status{font-size:11px;color:var(--muted);margin-top:8px}.detail-backdrop{position:fixed;inset:0;background:#171713f5;z-index:20;display:none;align-items:center;justify-content:center;padding:18px}.detail-backdrop.show{display:flex}.detail-panel{width:min(900px,100%);max-height:96vh;overflow:auto;color:#fff;text-align:center}.detail-panel img{max-width:100%;max-height:76vh;object-fit:contain;border-radius:10px}.detail-close{position:fixed;right:18px;top:18px;border:0;border-radius:50%;width:42px;height:42px;font-size:25px;background:#ffffffdd;color:#222}.detail-meta{font-size:13px;line-height:1.8;margin-top:12px}.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#292923;color:white;padding:10px 16px;border-radius:999px;font-size:12px;display:none;z-index:10}
 @media(max-width:760px){.app{padding:19px 14px 90px}.grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.hero{padding:19px;align-items:flex-start}.hero h2{font-size:18px}.header-note{display:none}.brand h1{font-size:27px}}
 @media(min-width:761px){.modal-backdrop{align-items:center}}
 </style>
 </head>
 <body>
-<div class="app">
+<div class="login-screen" id="loginScreen"><div class="login-card"><div class="brand"><small>YOUR PERSONAL WARDROBE</small><h1>煦衣 <span style="font-size:18px;color:#8b8a7d">Closet</span></h1></div><h2 style="margin-top:24px">登入你的雲端衣櫥</h2><p>使用「簡記」目前相同的密碼即可登入。煦衣與簡記共用 Supabase 帳號，但資料各自獨立。</p><form id="loginForm"><input id="loginPassword" type="password" placeholder="請輸入簡記使用的密碼" autocomplete="current-password" required><button class="primary" id="loginButton" type="submit" style="width:100%">登入煦衣</button><div class="login-error" id="loginError"></div></form><div class="cloud-status">雲端同步 · 手機與電腦共用衣櫥</div></div></div>
+<div class="app" id="appShell">
 <header>
   <div class="brand"><small>YOUR PERSONAL WARDROBE</small><h1>煦衣 <span style="font-size:18px;color:#8b8a7d">Closet</span></h1></div>
-  <div class="header-note">A considered collection of what you wear.</div>
+  <div class="header-note">A considered collection of what you wear. <button class="small-btn" id="logoutBtn" style="margin-left:8px">登出</button></div>
 </header>
 <section class="hero">
   <div><h2>整理你的日常衣著</h2><p>用照片收藏每一件衣服，讓衣櫥一目了然。</p></div>
@@ -110,18 +111,62 @@ footer{text-align:center;color:#aaa597;font-size:10px;margin-top:35px;letter-spa
   <div class="form-actions"><button type="button" class="secondary" id="doneCats">完成</button></div>
 </div>
 </div>
+<div class="detail-backdrop" id="detailBackdrop"><button class="detail-close" id="detailClose" aria-label="關閉">×</button><div class="detail-panel"><img id="detailPhoto" alt="衣物照片"><div class="detail-meta" id="detailMeta"></div></div></div>
 <div class="toast" id="toast"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 const DB_NAME='xuyi-closet-db', STORE='items', CAT_STORE='categories';
+const SUPABASE_URL='https://emwzognoixuvtzafxqlv.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY='sb_publishable_yARE-VJ_UUxWXPv-tyKQgg_TrzeXMhR';
+const LOGIN_EMAIL='peter830924@gmail.com';
+const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
+let currentUser=null, cloudReady=false; const PHOTO_BUCKET='closet-photos';
 const DEFAULT_CATEGORIES=['外套','褲子','上衣','襯衫','針織衫','洋裝','鞋子','配件','其他'];
 let db, items=[], categories=[...DEFAULT_CATEGORIES], subcategories={}, editingId=null, photoData=null;
 const $=id=>document.getElementById(id);
 function openDB(){return new Promise((resolve,reject)=>{const req=indexedDB.open(DB_NAME,2);req.onupgradeneeded=()=>{const d=req.result;if(!d.objectStoreNames.contains(STORE))d.createObjectStore(STORE,{keyPath:'id'});if(!d.objectStoreNames.contains(CAT_STORE))d.createObjectStore(CAT_STORE,{keyPath:'name'});};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);});}
 function allCategories(){return new Promise((resolve,reject)=>{const r=db.transaction(CAT_STORE).objectStore(CAT_STORE).getAll();r.onsuccess=()=>resolve(r.result||[]);r.onerror=()=>reject(r.error);});}
-function saveCategories(list){return new Promise((resolve,reject)=>{const tx=db.transaction(CAT_STORE,'readwrite'),s=tx.objectStore(CAT_STORE);s.clear();list.forEach(name=>s.put({name,subcategories:[...(subcategories[name]||[])]}));tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});}
+async function saveCategories(list){await new Promise((resolve,reject)=>{const tx=db.transaction(CAT_STORE,'readwrite'),s=tx.objectStore(CAT_STORE);s.clear();list.forEach(name=>s.put({name,subcategories:[...(subcategories[name]||[])]}));tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});if(cloudReady)await syncCategories();}
 function allItems(){return new Promise((resolve,reject)=>{const r=db.transaction(STORE).objectStore(STORE).getAll();r.onsuccess=()=>resolve(r.result||[]);r.onerror=()=>reject(r.error);});}
-function saveItem(item){return new Promise((resolve,reject)=>{const r=db.transaction(STORE,'readwrite').objectStore(STORE).put(item);r.onsuccess=resolve;r.onerror=()=>reject(r.error);});}
-function removeItem(id){return new Promise((resolve,reject)=>{const r=db.transaction(STORE,'readwrite').objectStore(STORE).delete(id);r.onsuccess=resolve;r.onerror=()=>reject(r.error);});}
+async function saveItem(item){await new Promise((resolve,reject)=>{const r=db.transaction(STORE,'readwrite').objectStore(STORE).put(item);r.onsuccess=resolve;r.onerror=()=>reject(r.error);});if(cloudReady)await syncItem(item);}
+async function removeItem(id){const old=items.find(x=>x.id===id);await new Promise((resolve,reject)=>{const r=db.transaction(STORE,'readwrite').objectStore(STORE).delete(id);r.onsuccess=resolve;r.onerror=()=>reject(r.error);});if(cloudReady){const {error}=await supabaseClient.from('closet_items').delete().eq('id',id).eq('user_id',currentUser.id);if(error)throw error;if(old?.photo_path){const {error:e}=await supabaseClient.storage.from(PHOTO_BUCKET).remove([old.photo_path]);if(e)console.warn(e);}}}
+async function compressImage(file){
+ const img=await new Promise((resolve,reject)=>{const u=URL.createObjectURL(file),im=new Image();im.onload=()=>{URL.revokeObjectURL(u);resolve(im)};im.onerror=reject;im.src=u;});
+ const scale=Math.min(1,1600/Math.max(img.naturalWidth,img.naturalHeight));const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(img.naturalWidth*scale));canvas.height=Math.max(1,Math.round(img.naturalHeight*scale));canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
+ let blob=await new Promise(r=>canvas.toBlob(r,'image/jpeg',0.82));if(!blob)throw new Error('圖片壓縮失敗');
+ if(blob.size>550*1024){let q=0.72;while(blob.size>550*1024&&q>=0.5){blob=await new Promise(r=>canvas.toBlob(r,'image/jpeg',q));q-=0.08;}}
+ return await new Promise((resolve,reject)=>{const fr=new FileReader();fr.onload=()=>resolve(fr.result);fr.onerror=reject;fr.readAsDataURL(blob);});
+}
+function dataUrlBlob(dataUrl){const [head,body]=dataUrl.split(',');const mime=(head.match(/data:(.*?);/)||[])[1]||'image/jpeg';const bin=atob(body);const bytes=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);return new Blob([bytes],{type:mime});}
+async function syncCategories(){const payload={categories:[...categories],subcategories:{...subcategories}};const row={id:'categories:'+currentUser.id,user_id:currentUser.id,data:payload,updated_at:new Date().toISOString()};const {error}=await supabaseClient.from('closet_categories').upsert(row,{onConflict:'id'});if(error)throw error;}
+async function syncItem(item){let photoPath=item.photo_path||null;if(item.photo&&item.photo.startsWith('data:')){photoPath=`${currentUser.id}/${item.id}.jpg`;const {error:upErr}=await supabaseClient.storage.from(PHOTO_BUCKET).upload(photoPath,dataUrlBlob(item.photo),{upsert:true,contentType:'image/jpeg'});if(upErr)throw upErr;item.photo_path=photoPath;await new Promise((resolve,reject)=>{const r=db.transaction(STORE,'readwrite').objectStore(STORE).put(item);r.onsuccess=resolve;r.onerror=()=>reject(r.error);});}
+ const data={...item};delete data.photo;delete data.photo_path;const row={id:item.id,user_id:currentUser.id,data,photo_path:photoPath,updated_at:new Date().toISOString()};const {error}=await supabaseClient.from('closet_items').upsert(row,{onConflict:'id'});if(error)throw error;}
+async function hydrateCloudPhoto(item){if(!item.photo_path)return item;const {data,error}=await supabaseClient.storage.from(PHOTO_BUCKET).createSignedUrl(item.photo_path,60*60);if(!error&&data?.signedUrl)item.photo=data.signedUrl;return item;}
+async function loadCloud(){
+ const uid=currentUser.id;const [{data:catRow,error:catErr},{data:rows,error:itemErr}]=await Promise.all([
+  supabaseClient.from('closet_categories').select('data').eq('user_id',uid).maybeSingle(),
+  supabaseClient.from('closet_items').select('id,data,photo_path').eq('user_id',uid)
+ ]);if(catErr)throw catErr;if(itemErr)throw itemErr;
+ const localItems=await allItems(),localCats=await allCategories();
+ if(!catRow&&!rows.length){
+  if(localCats.length){categories=localCats.map(x=>x.name);subcategories=Object.fromEntries(localCats.map(x=>[x.name,Array.isArray(x.subcategories)?x.subcategories:[]]));}else{subcategories={};}
+  await syncCategories();
+  for(const it of localItems)await syncItem(it);
+  toast(localItems.length?`已將本機 ${localItems.length} 件衣物匯入雲端`:'雲端衣櫥已建立');
+ }else{
+  if(catRow?.data){categories=Array.isArray(catRow.data.categories)?catRow.data.categories:[...DEFAULT_CATEGORIES];subcategories=catRow.data.subcategories||{};await new Promise((resolve,reject)=>{const tx=db.transaction(CAT_STORE,'readwrite'),st=tx.objectStore(CAT_STORE);st.clear();categories.forEach(name=>st.put({name,subcategories:subcategories[name]||[]}));tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});}
+  const cloudItems=await Promise.all((rows||[]).map(async row=>hydrateCloudPhoto({...row.data,id:row.id,photo_path:row.photo_path||null,created:row.data?.created||Date.now()})));
+  await new Promise((resolve,reject)=>{const tx=db.transaction(STORE,'readwrite'),st=tx.objectStore(STORE);st.clear();cloudItems.forEach(it=>st.put(it));tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});
+ }
+ items=await allItems();refreshCategoryOptions();render();
+}
+async function bootCloud(){
+ db=await openDB();const {data:session,error}=await supabaseClient.auth.getSession();if(error)console.warn(error);
+ if(session?.session){currentUser=session.session.user;await loadCloud();cloudReady=true;showApp();return;}
+ $('loginScreen').style.display='flex';$('appShell').style.display='none';
+}
+function showApp(){$('loginScreen').style.display='none';$('appShell').style.display='block';cloudReady=true;}
+async function signIn(password){const {data,error}=await supabaseClient.auth.signInWithPassword({email:LOGIN_EMAIL,password});if(error)throw error;currentUser=data.user;await loadCloud();cloudReady=true;showApp();}
 function esc(s=''){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function toast(msg){$('toast').textContent=msg;$('toast').style.display='block';setTimeout(()=>$('toast').style.display='none',2200);}
 
@@ -171,11 +216,14 @@ function showPreview(src){$('preview').src=src||'';$('preview').style.display=sr
 function closeForm(){$('modalBackdrop').classList.remove('show');$('itemForm').reset();photoData=null;editingId=null;showPreview(null);}
 $('addBtn').onclick=()=>openForm();$('category').onchange=()=>refreshSubcategoryOptions();$('closeModal').onclick=closeForm;$('cancelBtn').onclick=closeForm;
 $('modalBackdrop').onclick=e=>{if(e.target===$('modalBackdrop'))closeForm();};
-$('photoInput').onchange=async e=>{const f=e.target.files[0];if(!f)return;if(!f.type.startsWith('image/')){toast('請選擇圖片檔案');return;}photoData=await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(f);});showPreview(photoData);};
+$('photoInput').onchange=async e=>{const f=e.target.files[0];if(!f)return;if(!f.type.startsWith('image/')){toast('請選擇圖片檔案');return;}try{photoData=await compressImage(f);showPreview(photoData);toast('照片已自動壓縮');}catch(err){console.error(err);toast('照片處理失敗，請重新選擇');}};
 $('itemForm').onsubmit=async e=>{e.preventDefault();const category=$('category').value;if(!category)return;
  const old=items.find(x=>x.id===editingId);const item={id:editingId||crypto.randomUUID(),category,subcategory:$('subcategory').value||'',brand:$('brand').value.trim(),color:$('color').value.trim(),size:$('size').value.trim(),photo:photoData,created:old?.created||Date.now(),updated:Date.now()};
  await saveItem(item);items=await allItems();closeForm();render();toast(old?'衣物資料已更新':'已加入你的衣櫥');};
-$('grid').onclick=async e=>{const edit=e.target.dataset.edit,del=e.target.dataset.delete;if(edit){const x=items.find(i=>i.id===edit);if(x)openForm(x);}if(del){const x=items.find(i=>i.id===del);if(x&&confirm(`確定刪除「${x.brand||x.category}」嗎？`)){await removeItem(del);items=await allItems();render();toast('衣物已刪除');}}};
+$('grid').onclick=async e=>{const edit=e.target.dataset.edit,del=e.target.dataset.delete;const photo=e.target.closest('article')?.querySelector('.photo');if(e.target.classList.contains('photo')&&photo){const card=e.target.closest('.card'),id=card?.querySelector('[data-edit]')?.dataset.edit,item=items.find(x=>x.id===id);if(item?.photo){$('detailPhoto').src=item.photo;$('detailMeta').textContent=[item.category,item.subcategory,item.brand,item.color,item.size?'尺寸 '+item.size:''].filter(Boolean).join(' · ');$('detailBackdrop').classList.add('show');}return;}if(edit){const x=items.find(i=>i.id===edit);if(x)openForm(x);}if(del){const x=items.find(i=>i.id===del);if(x&&confirm(`確定刪除「${x.brand||x.category}」嗎？`)){await removeItem(del);items=await allItems();render();toast('衣物已刪除');}}};
+$('detailClose').onclick=()=>$('detailBackdrop').classList.remove('show');$('detailBackdrop').onclick=e=>{if(e.target===$('detailBackdrop'))$('detailBackdrop').classList.remove('show');};
+$('loginForm').onsubmit=async e=>{e.preventDefault();const btn=$('loginButton'),err=$('loginError');btn.disabled=true;btn.textContent='登入中…';err.textContent='';try{await signIn($('loginPassword').value);}catch(ex){console.error(ex);err.textContent='登入失敗，請確認簡記目前使用的密碼及 Supabase 帳號狀態。';}finally{btn.disabled=false;btn.textContent='登入煦衣';}};
+$('logoutBtn').onclick=async()=>{if(!confirm('確定登出煦衣？'))return;await supabaseClient.auth.signOut();currentUser=null;cloudReady=false;$('appShell').style.display='none';$('loginScreen').style.display='flex';};
 $('search').oninput=render;$('categoryFilter').onchange=render;$('sort').onchange=render;
 $('manageCatsBtn').onclick=openCategoryManager;
 $('closeCats').onclick=()=> $('categoryBackdrop').classList.remove('show');
@@ -208,7 +256,7 @@ $('categoryList').onclick=async e=>{
  if(remove!==undefined){const i=Number(remove),name=categories[i],used=items.filter(x=>x.category===name).length;if(categories.length<=1){toast('至少需要保留一個類別');return;}let target='';if(used){target=prompt(`「${name}」目前有 ${used} 件衣物。請輸入要移轉到的既有類別：\n${categories.filter(c=>c!==name).join('、')}`,categories.find(c=>c!==name));if(!target)return;if(target===name||!categories.includes(target)){toast('請選擇有效的其他類別');return;}items=items.map(x=>x.category===name?{...x,category:target,subcategory:''}:x);for(const item of items)await saveItem(item);}if(!confirm(`確定刪除「${name}」類別嗎？`))return;categories.splice(i,1);delete subcategories[name];await saveCategories(categories);refreshCategoryOptions();renderCategoryManager();render();toast('類別已刪除');}
 };
 $('categoryList').onkeydown=e=>{if(e.key==='Enter'&&e.target.matches('input[data-subinput]')){e.preventDefault();const i=e.target.dataset.subinput;$('categoryList').querySelector(`button[data-subadd="${i}"]`)?.click();}};
-(async()=>{try{db=await openDB();items=await allItems();const stored=await allCategories();if(stored.length){categories=stored.map(x=>x.name);subcategories=Object.fromEntries(stored.map(x=>[x.name,Array.isArray(x.subcategories)?x.subcategories:[]]));}else{categories=[...DEFAULT_CATEGORIES];subcategories={};await saveCategories(categories);}refreshCategoryOptions();render();}catch(e){console.error(e);toast('資料庫啟動失敗，請重新整理頁面');}})();
+(async()=>{try{await bootCloud();}catch(e){console.error(e);$('loginScreen').style.display='flex';$('loginError').textContent='雲端連線失敗，請重新整理或稍後再試。';}})();
 if('serviceWorker'in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));}
 </script>
 </body>
