@@ -183,9 +183,23 @@ $('doneCats').onclick=()=> $('categoryBackdrop').classList.remove('show');
 $('categoryBackdrop').onclick=e=>{if(e.target===$('categoryBackdrop'))$('categoryBackdrop').classList.remove('show');};
 $('addCategoryBtn').onclick=async()=>{const name=$('newCategory').value.trim();if(!name){toast('請輸入類別名稱');return;}if(categories.includes(name)){toast('這個類別已經存在');return;}categories.push(name);await saveCategories(categories);$('newCategory').value='';refreshCategoryOptions();renderCategoryManager();render();toast('已新增類別');};
 $('categoryList').onclick=async e=>{
- const up=e.target.dataset.up,down=e.target.dataset.down,rename=e.target.dataset.rename,remove=e.target.dataset.remove;
- const subadd=e.target.dataset.subadd,subrename=e.target.dataset.subrename,subremove=e.target.dataset.subremove;
- if(subadd!==undefined){const i=Number(subadd),input=document.querySelector(`[data-subinput="${i}"]`),name=(input?.value||'').trim();if(!input){toast('找不到子分類輸入欄位，請重新開啟類別管理');return;}if(!name){toast('請輸入子分類名稱');input.focus();return;}const main=categories[i];subcategories[main]||=[];if(subcategories[main].includes(name)){toast('子分類已存在');return;}subcategories[main].push(name);await saveCategories(categories);renderCategoryManager();toast(`已新增「${name}」，目前共 ${subcategories[main].length} 個子分類`);return;}
+ // 使用 closest() 取得實際按鈕，避免手機瀏覽器點擊時事件目標不是按鈕本身，造成新增子分類失效。
+ const button=e.target.closest('button');if(!button)return;
+ const up=button.dataset.up,down=button.dataset.down,rename=button.dataset.rename,remove=button.dataset.remove;
+ const subadd=button.dataset.subadd,subrename=button.dataset.subrename,subremove=button.dataset.subremove;
+ if(subadd!==undefined){
+  const i=Number(subadd);
+  if(!Number.isInteger(i)||i<0||i>=categories.length){toast('主類別資料有誤，請重新整理');return;}
+  const main=categories[i],input=$('categoryList').querySelector(`[data-subinput="${i}"]`),name=(input?.value||'').trim();
+  if(!input){toast('找不到子分類輸入欄位，請重新開啟類別管理');return;}
+  if(!name){toast('請輸入子分類名稱');input.focus();return;}
+  subcategories[main]=Array.isArray(subcategories[main])?subcategories[main]:[];
+  if(subcategories[main].some(s=>String(s).trim()===name)){toast('這個主類別下已經有相同的子分類');input.focus();return;}
+  subcategories[main].push(name);
+  try{await saveCategories(categories);renderCategoryManager();toast(`已新增「${name}」；「${main}」目前共有 ${subcategories[main].length} 個子分類`);}
+  catch(err){subcategories[main].pop();console.error(err);toast('儲存子分類失敗，請稍後再試');}
+  return;
+ }
  if(subrename!==undefined){const [i,j]=subrename.split(':').map(Number),main=categories[i],old=subcategories[main][j],next=prompt('請輸入新的子分類名稱',old)?.trim();if(!next||next===old)return;if((subcategories[main]||[]).includes(next)){toast('子分類已存在');return;}subcategories[main][j]=next;items=items.map(x=>x.category===main&&x.subcategory===old?{...x,subcategory:next}:x);await saveCategories(categories);for(const item of items)await saveItem(item);refreshSubcategoryOptions();renderCategoryManager();render();toast('子分類及相關衣物已更新');return;}
  if(subremove!==undefined){const [i,j]=subremove.split(':').map(Number),main=categories[i],name=subcategories[main][j],used=items.filter(x=>x.category===main&&x.subcategory===name).length;if(used&&!confirm(`有 ${used} 件衣物使用「${name}」，刪除後將改為未指定子分類。確定刪除？`))return;items=items.map(x=>x.category===main&&x.subcategory===name?{...x,subcategory:''}:x);for(const item of items)await saveItem(item);subcategories[main].splice(j,1);await saveCategories(categories);refreshSubcategoryOptions();renderCategoryManager();render();toast('子分類已刪除');return;}
  if(up!==undefined){await moveCategory(Number(up),Number(up)-1);return;}
@@ -193,6 +207,7 @@ $('categoryList').onclick=async e=>{
  if(rename!==undefined){const i=Number(rename),old=categories[i],next=prompt('請輸入新的類別名稱',old)?.trim();if(!next||next===old)return;if(categories.includes(next)){toast('這個類別名稱已存在');return;}categories[i]=next;subcategories[next]=subcategories[old]||[];delete subcategories[old];items=items.map(x=>x.category===old?{...x,category:next}:x);await saveCategories(categories);for(const item of items)await saveItem(item);refreshCategoryOptions();renderCategoryManager();render();toast('類別及相關衣物已更新');return;}
  if(remove!==undefined){const i=Number(remove),name=categories[i],used=items.filter(x=>x.category===name).length;if(categories.length<=1){toast('至少需要保留一個類別');return;}let target='';if(used){target=prompt(`「${name}」目前有 ${used} 件衣物。請輸入要移轉到的既有類別：\n${categories.filter(c=>c!==name).join('、')}`,categories.find(c=>c!==name));if(!target)return;if(target===name||!categories.includes(target)){toast('請選擇有效的其他類別');return;}items=items.map(x=>x.category===name?{...x,category:target,subcategory:''}:x);for(const item of items)await saveItem(item);}if(!confirm(`確定刪除「${name}」類別嗎？`))return;categories.splice(i,1);delete subcategories[name];await saveCategories(categories);refreshCategoryOptions();renderCategoryManager();render();toast('類別已刪除');}
 };
+$('categoryList').onkeydown=e=>{if(e.key==='Enter'&&e.target.matches('input[data-subinput]')){e.preventDefault();const i=e.target.dataset.subinput;$('categoryList').querySelector(`button[data-subadd="${i}"]`)?.click();}};
 (async()=>{try{db=await openDB();items=await allItems();const stored=await allCategories();if(stored.length){categories=stored.map(x=>x.name);subcategories=Object.fromEntries(stored.map(x=>[x.name,Array.isArray(x.subcategories)?x.subcategories:[]]));}else{categories=[...DEFAULT_CATEGORIES];subcategories={};await saveCategories(categories);}refreshCategoryOptions();render();}catch(e){console.error(e);toast('資料庫啟動失敗，請重新整理頁面');}})();
 if('serviceWorker'in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));}
 </script>
