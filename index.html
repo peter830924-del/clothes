@@ -23,7 +23,7 @@ header{display:flex;justify-content:space-between;align-items:center;margin-bott
 .search{flex:1;min-width:190px}
 input,select,textarea{width:100%;background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:12px;color:var(--ink);outline:none}
 input:focus,select:focus,textarea:focus{border-color:#9a9d8e}
-.toolbar select{width:auto;min-width:125px}
+.toolbar select{width:auto;min-width:125px}.toolbar #subcategoryFilter{min-width:135px}
 .summary{display:flex;justify-content:space-between;align-items:center;margin:16px 2px;color:var(--muted);font-size:12px}
 .grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
 .card{background:var(--paper);border:1px solid var(--line);border-radius:14px;overflow:hidden;min-width:0}
@@ -69,7 +69,8 @@ footer{text-align:center;color:#aaa597;font-size:10px;margin-top:35px;letter-spa
 </section>
 <div class="toolbar">
   <div class="search"><input id="search" placeholder="搜尋品牌、顏色或尺寸…" autocomplete="off"></div>
-  <select id="categoryFilter"><option value="">所有類別</option><option>外套</option><option>褲子</option><option>上衣</option><option>襯衫</option><option>針織衫</option><option>洋裝</option><option>鞋子</option><option>配件</option><option>其他</option></select>
+  <select id="categoryFilter" aria-label="依主分類篩選"><option value="">所有主分類</option></select>
+  <select id="subcategoryFilter" aria-label="依子分類篩選"><option value="">所有子分類</option></select>
   <select id="sort"><option value="new">最近新增</option><option value="brand">品牌排序</option><option value="category">類別排序</option></select>
   <button class="secondary" id="manageCatsBtn" style="border:1px solid var(--line);border-radius:999px;padding:10px 14px;background:var(--paper);font-size:12px">管理類別</button>
 </div>
@@ -172,12 +173,20 @@ function toast(msg){$('toast').textContent=msg;$('toast').style.display='block';
 
 function refreshCategoryOptions(){
  const filter=$('categoryFilter'), current=filter.value;
- filter.innerHTML='<option value="">所有類別</option>'+categories.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
+ filter.innerHTML='<option value="">所有主分類</option>'+categories.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
  filter.value=categories.includes(current)?current:'';
+ refreshSubcategoryFilterOptions();
  const categorySelect=$('category'), selectedCategory=categorySelect.value;
  categorySelect.innerHTML='<option value="">請選擇</option>'+categories.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
  categorySelect.value=categories.includes(selectedCategory)?selectedCategory:'';
  refreshSubcategoryOptions();
+}
+function refreshSubcategoryFilterOptions(selected){
+ const main=$('categoryFilter').value, select=$('subcategoryFilter');
+ const current=selected===undefined?select.value:selected;
+ const list=main?(subcategories[main]||[]):[...new Set(Object.values(subcategories).flat())].sort((a,b)=>a.localeCompare(b,'zh-Hant'));
+ select.innerHTML='<option value="">所有子分類</option>'+list.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
+ select.value=list.includes(current)?current:'';
 }
 function refreshSubcategoryOptions(selected=''){
  const main=$('category')?.value||'', select=$('subcategory');
@@ -197,14 +206,14 @@ async function openCategoryManager(){renderCategoryManager();$('categoryBackdrop
 async function moveCategory(from,to){if(to<0||to>=categories.length)return;const v=categories.splice(from,1)[0];categories.splice(to,0,v);await saveCategories(categories);refreshCategoryOptions();renderCategoryManager();}
 
 function render(){
- const q=$('search').value.trim().toLowerCase(),cat=$('categoryFilter').value,sort=$('sort').value;
- let list=items.filter(x=>(!cat||x.category===cat)&&[x.brand,x.color,x.size,x.category,x.subcategory||''].join(' ').toLowerCase().includes(q));
+ const q=$('search').value.trim().toLowerCase(),cat=$('categoryFilter').value,sub=$('subcategoryFilter').value,sort=$('sort').value;
+ let list=items.filter(x=>(!cat||x.category===cat)&&(!sub||x.subcategory===sub)&&[x.brand,x.color,x.size,x.category,x.subcategory||''].join(' ').toLowerCase().includes(q));
  list.sort((a,b)=>sort==='brand'?a.brand.localeCompare(b.brand,'zh-Hant'):sort==='category'?a.category.localeCompare(b.category,'zh-Hant'):b.created-a.created);
  $('count').textContent=`目前 ${items.length} 件衣物 · 顯示 ${list.length} 件`;
  $('grid').innerHTML=list.length?list.map(x=>`<article class="card">
  ${x.photo?`<img class="photo" src="${x.photo}" alt="${esc(x.brand||x.category)}">`:`<div class="no-photo">尚無照片</div>`}
  <div class="info"><div class="category">${esc(x.category)}${x.subcategory?` · ${esc(x.subcategory)}`:''}</div><div class="name">${esc(x.brand||'未填寫品牌')}</div><div class="meta">${x.color?`<span>${esc(x.color)}</span>`:''}${x.size?`<span>尺寸 ${esc(x.size)}</span>`:''}</div>
- <div class="card-actions"><button class="small-btn" data-edit="${x.id}">編輯</button><button class="small-btn" data-delete="${x.id}">刪除</button></div></div></article>`).join(''):`<div class="empty"><div class="symbol">＋</div><h3>${q||cat?'找不到符合的衣物':'你的衣櫥還是空的'}</h3><p>${q||cat?'試試其他搜尋條件。':'從拍攝第一件衣服開始，建立自己的數位衣櫥。'}</p>${q||cat?'':'<button class="primary" onclick="openForm()">新增第一件衣物</button>'}</div>`;
+ <div class="card-actions"><button class="small-btn" data-edit="${x.id}">編輯</button><button class="small-btn" data-delete="${x.id}">刪除</button></div></div></article>`).join(''):`<div class="empty"><div class="symbol">＋</div><h3>${q||cat||sub?'找不到符合的衣物':'你的衣櫥還是空的'}</h3><p>${q||cat||sub?'試試其他搜尋條件。':'從拍攝第一件衣服開始，建立自己的數位衣櫥。'}</p>${q||cat||sub?'':'<button class="primary" onclick="openForm()">新增第一件衣物</button>'}</div>`;
 }
 function openForm(item=null){
  editingId=item?.id||null;photoData=item?.photo||null;
@@ -218,13 +227,13 @@ $('addBtn').onclick=()=>openForm();$('category').onchange=()=>refreshSubcategory
 $('modalBackdrop').onclick=e=>{if(e.target===$('modalBackdrop'))closeForm();};
 $('photoInput').onchange=async e=>{const f=e.target.files[0];if(!f)return;if(!f.type.startsWith('image/')){toast('請選擇圖片檔案');return;}try{photoData=await compressImage(f);showPreview(photoData);toast('照片已自動壓縮');}catch(err){console.error(err);toast('照片處理失敗，請重新選擇');}};
 $('itemForm').onsubmit=async e=>{e.preventDefault();const category=$('category').value;if(!category)return;
- const old=items.find(x=>x.id===editingId);const item={id:editingId||crypto.randomUUID(),category,subcategory:$('subcategory').value||'',brand:$('brand').value.trim(),color:$('color').value.trim(),size:$('size').value.trim(),photo:photoData,created:old?.created||Date.now(),updated:Date.now()};
+ const old=items.find(x=>x.id===editingId);const item={id:editingId||crypto.randomUUID(),category,subcategory:$('subcategory').value||'',brand:$('brand').value.trim(),color:$('color').value.trim(),size:$('size').value.trim(),photo:photoData,photo_path:old?.photo_path||null,created:old?.created||Date.now(),updated:Date.now()};
  await saveItem(item);items=await allItems();closeForm();render();toast(old?'衣物資料已更新':'已加入你的衣櫥');};
 $('grid').onclick=async e=>{const edit=e.target.dataset.edit,del=e.target.dataset.delete;const photo=e.target.closest('article')?.querySelector('.photo');if(e.target.classList.contains('photo')&&photo){const card=e.target.closest('.card'),id=card?.querySelector('[data-edit]')?.dataset.edit,item=items.find(x=>x.id===id);if(item?.photo){$('detailPhoto').src=item.photo;$('detailMeta').textContent=[item.category,item.subcategory,item.brand,item.color,item.size?'尺寸 '+item.size:''].filter(Boolean).join(' · ');$('detailBackdrop').classList.add('show');}return;}if(edit){const x=items.find(i=>i.id===edit);if(x)openForm(x);}if(del){const x=items.find(i=>i.id===del);if(x&&confirm(`確定刪除「${x.brand||x.category}」嗎？`)){await removeItem(del);items=await allItems();render();toast('衣物已刪除');}}};
 $('detailClose').onclick=()=>$('detailBackdrop').classList.remove('show');$('detailBackdrop').onclick=e=>{if(e.target===$('detailBackdrop'))$('detailBackdrop').classList.remove('show');};
 $('loginForm').onsubmit=async e=>{e.preventDefault();const btn=$('loginButton'),err=$('loginError');btn.disabled=true;btn.textContent='登入中…';err.textContent='';try{await signIn($('loginPassword').value);}catch(ex){console.error(ex);err.textContent='登入失敗，請確認簡記目前使用的密碼及 Supabase 帳號狀態。';}finally{btn.disabled=false;btn.textContent='登入煦衣';}};
 $('logoutBtn').onclick=async()=>{if(!confirm('確定登出煦衣？'))return;await supabaseClient.auth.signOut();currentUser=null;cloudReady=false;$('appShell').style.display='none';$('loginScreen').style.display='flex';};
-$('search').oninput=render;$('categoryFilter').onchange=render;$('sort').onchange=render;
+$('search').oninput=render;$('categoryFilter').onchange=()=>{refreshSubcategoryFilterOptions('');render();};$('subcategoryFilter').onchange=render;$('sort').onchange=render;
 $('manageCatsBtn').onclick=openCategoryManager;
 $('closeCats').onclick=()=> $('categoryBackdrop').classList.remove('show');
 $('doneCats').onclick=()=> $('categoryBackdrop').classList.remove('show');
@@ -244,12 +253,12 @@ $('categoryList').onclick=async e=>{
   subcategories[main]=Array.isArray(subcategories[main])?subcategories[main]:[];
   if(subcategories[main].some(s=>String(s).trim()===name)){toast('這個主類別下已經有相同的子分類');input.focus();return;}
   subcategories[main].push(name);
-  try{await saveCategories(categories);renderCategoryManager();toast(`已新增「${name}」；「${main}」目前共有 ${subcategories[main].length} 個子分類`);}
+  try{await saveCategories(categories);refreshSubcategoryFilterOptions();renderCategoryManager();toast(`已新增「${name}」；「${main}」目前共有 ${subcategories[main].length} 個子分類`);}
   catch(err){subcategories[main].pop();console.error(err);toast('儲存子分類失敗，請稍後再試');}
   return;
  }
- if(subrename!==undefined){const [i,j]=subrename.split(':').map(Number),main=categories[i],old=subcategories[main][j],next=prompt('請輸入新的子分類名稱',old)?.trim();if(!next||next===old)return;if((subcategories[main]||[]).includes(next)){toast('子分類已存在');return;}subcategories[main][j]=next;items=items.map(x=>x.category===main&&x.subcategory===old?{...x,subcategory:next}:x);await saveCategories(categories);for(const item of items)await saveItem(item);refreshSubcategoryOptions();renderCategoryManager();render();toast('子分類及相關衣物已更新');return;}
- if(subremove!==undefined){const [i,j]=subremove.split(':').map(Number),main=categories[i],name=subcategories[main][j],used=items.filter(x=>x.category===main&&x.subcategory===name).length;if(used&&!confirm(`有 ${used} 件衣物使用「${name}」，刪除後將改為未指定子分類。確定刪除？`))return;items=items.map(x=>x.category===main&&x.subcategory===name?{...x,subcategory:''}:x);for(const item of items)await saveItem(item);subcategories[main].splice(j,1);await saveCategories(categories);refreshSubcategoryOptions();renderCategoryManager();render();toast('子分類已刪除');return;}
+ if(subrename!==undefined){const [i,j]=subrename.split(':').map(Number),main=categories[i],old=subcategories[main][j],next=prompt('請輸入新的子分類名稱',old)?.trim();if(!next||next===old)return;if((subcategories[main]||[]).includes(next)){toast('子分類已存在');return;}subcategories[main][j]=next;items=items.map(x=>x.category===main&&x.subcategory===old?{...x,subcategory:next}:x);await saveCategories(categories);for(const item of items)await saveItem(item);refreshSubcategoryOptions();refreshSubcategoryFilterOptions();renderCategoryManager();render();toast('子分類及相關衣物已更新');return;}
+ if(subremove!==undefined){const [i,j]=subremove.split(':').map(Number),main=categories[i],name=subcategories[main][j],used=items.filter(x=>x.category===main&&x.subcategory===name).length;if(used&&!confirm(`有 ${used} 件衣物使用「${name}」，刪除後將改為未指定子分類。確定刪除？`))return;items=items.map(x=>x.category===main&&x.subcategory===name?{...x,subcategory:''}:x);for(const item of items)await saveItem(item);subcategories[main].splice(j,1);await saveCategories(categories);refreshSubcategoryOptions();refreshSubcategoryFilterOptions();renderCategoryManager();render();toast('子分類已刪除');return;}
  if(up!==undefined){await moveCategory(Number(up),Number(up)-1);return;}
  if(down!==undefined){await moveCategory(Number(down),Number(down)+1);return;}
  if(rename!==undefined){const i=Number(rename),old=categories[i],next=prompt('請輸入新的類別名稱',old)?.trim();if(!next||next===old)return;if(categories.includes(next)){toast('這個類別名稱已存在');return;}categories[i]=next;subcategories[next]=subcategories[old]||[];delete subcategories[old];items=items.map(x=>x.category===old?{...x,category:next}:x);await saveCategories(categories);for(const item of items)await saveItem(item);refreshCategoryOptions();renderCategoryManager();render();toast('類別及相關衣物已更新');return;}

@@ -1,10 +1,11 @@
-煦衣 Closet v2.0｜Supabase 雲端同步版
+煦衣 Closet v2.1｜Supabase 雲端同步＋主／子分類搜尋
 
 本版功能：
 - 沿用簡記既有 Supabase 專案及同一個登入帳號（與簡記相同的密碼）。
 - 登入方式沿用簡記：畫面輸入密碼，程式使用簡記既有固定登入 Email 完成 Supabase Auth。
 - 衣物資料同步至 public.closet_items。
 - 主分類及子分類同步至 public.closet_categories。
+- 主畫面新增「主分類」及「子分類」兩個獨立篩選器，可單獨或交叉篩選；選擇主分類後，子分類選單只顯示該主分類底下的子分類；未選主分類時可搜尋所有子分類。
 - 衣物照片上傳至私有 Storage bucket closet-photos。
 - 手機與電腦登入同一帳號後使用同一份雲端衣櫥。
 - 拍照或選圖時自動縮圖及 JPEG 壓縮（最長邊 1600px，目標約 550KB 以下）。
